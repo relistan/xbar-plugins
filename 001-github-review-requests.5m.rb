@@ -165,8 +165,7 @@ def query_github(gh_bin, review_query, open_query)
   parsed
 end
 
-def print_pr_list(edges)
-  prs = edges.map { |edge| edge["node"] }.compact
+def print_pr_list(prs)
   prs.each do |pr|
     labels = pr.dig("labels", "nodes")&.map { |l| l["name"] } || []
     inactive = labels.include?(WIP_LABEL)
@@ -192,6 +191,8 @@ begin
 
   review_count = review_data.fetch("issueCount", 0)
   open_count = open_data.fetch("issueCount", 0)
+  review_prs = review_data.fetch("edges", []).map { |edge| edge["node"] }.compact
+  open_prs = open_data.fetch("edges", []).map { |edge| edge["node"] }.compact
 
   magick_bin = magick_path
   if magick_bin
@@ -204,14 +205,24 @@ begin
   else
     xbar_line("#{review_count} #{open_count}")
   end
-  xbar_line("---")
 
-  xbar_line("Review requests", size: 16, color: COLORS[:section], font: "Menlo-Bold")
-  print_pr_list(review_data.fetch("edges", []))
+  if review_prs.any? || open_prs.any?
+    xbar_line("---")
+  end
 
-  xbar_line("---")
-  xbar_line("My open PRs", size: 16, color: COLORS[:section], font: "Menlo-Bold")
-  print_pr_list(open_data.fetch("edges", []))
+  if review_prs.any?
+    xbar_line("Review requests", size: 16, color: COLORS[:section], font: "Menlo-Bold")
+    print_pr_list(review_prs)
+  end
+
+  if review_prs.any? && open_prs.any?
+    xbar_line("---")
+  end
+
+  if open_prs.any?
+    xbar_line("My open PRs", size: 16, color: COLORS[:section], font: "Menlo-Bold")
+    print_pr_list(open_prs)
+  end
 rescue StandardError => e
   xbar_line("❓ ❓")
   xbar_line("---")
