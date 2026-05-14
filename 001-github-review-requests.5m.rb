@@ -12,8 +12,10 @@ require "json"
 require "open3"
 require "time"
 
-# Optional: narrow scope, e.g. "draft:false org:mozi-app"
-FILTERS = "draft:false org:mozi-app"
+ORG = "hydrolix"
+
+# Optional: narrow scope, e.g. "draft:false org:hydrolix"
+FILTERS = "draft:false org:#{ORG}"
 
 # Optional: PRs with this label render with subdued color
 WIP_LABEL = "WIP"
