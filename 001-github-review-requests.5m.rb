@@ -114,6 +114,7 @@ end
 def query_github(gh_bin, review_query, open_query)
   gql = <<~GRAPHQL
     query($reviewQ: String!, $openQ: String!) {
+      viewer { login }
       review: search(query: $reviewQ, type: ISSUE, first: 30) {
         issueCount
         edges {
@@ -126,6 +127,8 @@ def query_github(gh_bin, review_query, open_query)
               url
               title
               labels(first: 100) { nodes { name } }
+              reviewDecision
+              latestReviews(first: 20) { nodes { author { login } state } }
             }
           }
         }
@@ -188,13 +191,20 @@ begin
   open_query = ["is:pr", "is:open", "author:@me", FILTERS].reject(&:empty?).join(" ")
 
   data = query_github(gh_bin, review_query, open_query).fetch("data")
+  viewer_login = data.dig("viewer", "login")
   review_data = data.fetch("review")
   open_data = data.fetch("open")
 
-  review_count = review_data.fetch("issueCount", 0)
-  open_count = open_data.fetch("issueCount", 0)
-  review_prs = review_data.fetch("edges", []).map { |edge| edge["node"] }.compact
+  review_prs = review_data.fetch("edges", []).map { |edge| edge["node"] }.compact.reject do |pr|
+    next false unless pr["reviewDecision"] == "CHANGES_REQUESTED"
+
+    reviewed_by_me = pr.dig("latestReviews", "nodes")&.any? { |r| r.dig("author", "login") == viewer_login }
+    !reviewed_by_me
+  end
   open_prs = open_data.fetch("edges", []).map { |edge| edge["node"] }.compact
+
+  review_count = review_prs.size
+  open_count = open_data.fetch("issueCount", 0)
 
   magick_bin = magick_path
   if magick_bin
